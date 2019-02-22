@@ -1,0 +1,488 @@
+require(['ojs/ojcore', 'knockout', 'jquery', 'ojs/ojknockout', 'promise', 'ojs/ojinputtext','ojs/ojcheckboxset', 'ojs/ojrowexpander', 'ojs/ojvalidation-number',
+  'ojs/ojtable', 'ojs/ojdatagrid','ojs/ojdatacollection-utils', 'ojs/ojarraytabledatasource','ojs/ojbutton', 'ojs/ojjsontreedatasource',
+         'ojs/ojflattenedtreedatagriddatasource','ojs/ojcollectiontreedatasource','ojs/ojlistdataproviderview','ojs/ojarraydataprovider','ojs/ojtagcloud'],
+        
+function(oj, ko, $)
+{   
+  function viewModel()
+  {
+    var _spinner =  apex.util.showSpinner();
+    var self = this;
+    var idFormato = 0;
+    var idSuperficie = 0;
+    var idMagemContrib = 0;
+    var idCustomAtrId =0;
+    var _completeLoad =false;
+    self.editMode       = ko.observable('none');
+    self.formatoOptions = ko.observableArray([]);
+    self.formato        = ko.observableArray([]);
+    self.canalVendas    = ko.observableArray([]);
+    self.ufOrigem       = ko.observableArray([]);
+    self.ufDestino      = ko.observableArray([]); 
+    self.superficie     = ko.observableArray([]);
+    self.produto        = ko.observableArray([]);
+    self.opcao          = ko.observableArray([]);
+    self.margemContrib  = ko.observableArray([]);    
+    self.formatoOpcoes  = ko.observableArray([]);    
+    self.custom         = ko.observableArray([]);
+    self.unidadeMedida  = ko.observableArray([]);
+    self.dataSourceCustom = new oj.ArrayDataProvider(self.custom, {idAttribute: 'id'});
+    self.dataSourceSuperficie = new oj.ArrayDataProvider(self.superficie, {idAttribute: 'id'});
+    self.dataSourceFormato = new oj.ArrayTableDataSource(self.formato, {idAttribute: 'id'});
+    self.dataSourceMargemContrib = new oj.ArrayTableDataSource(self.margemContrib, {idAttribute: 'id'});
+    self.dataSourceOpcao = ko.observable();
+    self.dsProduto = new oj.ArrayTableDataSource(self.produto, {idAttribute: 'id'});
+      
+      
+        //In mapfields, use "id" as key
+    //map "name" to "label" and "id" to "value"
+    var mapFields = function(item) {
+      var data = item['data'];
+      var mappedItem = {};
+      mappedItem['data'] = {};
+      mappedItem['data']['label'] = data['SuperficieName']();
+      mappedItem['data']['value'] = data['id'];
+      mappedItem['metadata'] = {'key': data['id']};
+        
+      return mappedItem;
+    };   
+      
+    var dataMapping = {mapFields: mapFields};
+    //create ListDataProviderView with dataMapping
+    self.listSupericie = new oj.ListDataProviderView( self.dataSourceSuperficie, {dataMapping: dataMapping});
+    
+      
+    self.addFormato = function (event){
+        self.formato.push({id:++idFormato,
+                           FormatoCod:ko.observable(''),
+                           FormatoName:ko.observable(''),
+                           OpcaoName :ko.observable(''),
+                           OpcaoId   :ko.observable(''),
+                           SuperficieName:ko.observable(null),
+                           SuperficieId:ko.observable(null),
+                           Pecas:ko.observable(0),
+                           Variavel:ko.observableArray(["Y"])});    
+        event.stopPropagation();
+        event.preventDefault();
+    } 
+     
+    self.addCustom = function (event){
+        self.custom.push({id:++idCustomAtrId,
+                          CustomAtrId:null,
+                          Campo:ko.observable(''),
+                          Rotulo:ko.observable(''),
+                          Min:ko.observable(''),
+                          Max:ko.observable(''),
+                          AdicionalValCusto:ko.observable(0),
+                          AdicionalBasePCT:ko.observable(0),
+                          UnidadeMedidaId:ko.observable(''),
+                          Padrao:ko.observable(''),
+			  Valores:ko.observableArray([])});
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    
+  
+    self.deleteFormato = function(event){
+        var _id = event.currentTarget.getAttribute('data-key');
+        self.formato.remove(function(item){return item.id==_id}) 
+        event.stopPropagation();
+        event.preventDefault();  
+    }
+
+    self.excluirMargemContrib = function(event){
+        var _id = event.currentTarget.getAttribute('data-key');
+        self.margemContrib.remove(function(item){return item.id==_id})
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    self.dblclick =function(event){
+      event.stopPropagation();
+      event.preventDefault();
+     console.log('oi');
+    }  
+    self.deleteSuperficie = function (event){
+      
+      var _id = event.currentTarget.getAttribute('data-key');      
+      self.superficie.remove(function(item){return item.id==_id })
+       self.formato.remove(function(item){return item.SuperficieId()==_id})
+      event.stopPropagation();
+      event.preventDefault();  
+    }
+    
+    self.addSuperficie = function(event){
+        self.superficie.push({id:String(idSuperficie++),SuperficieId:ko.observable(''),SuperficieName:ko.observable('')});       
+        event.stopPropagation();
+        event.preventDefault(); 
+      
+    }
+    self.addContrib = function(event){
+      event.stopPropagation();
+      event.preventDefault();
+      self.margemContrib.push({id:String(idMagemContrib++),
+                               UFOrigemId:ko.observable(''),
+                               UFDestinoId:ko.observable(''),
+                               CanalVendaId:ko.observable(''),
+                               MargemContribPBG:ko.observable(''),
+                               MargemContribPBShop:ko.observable(''),
+                               MargemOficina:ko.observable(''),
+                               PCTAdicionalModificado:ko.observable(''),
+                               PCTAdicionalPortifolio:ko.observable(''),
+                               ConfigPrecoProdutoId:null
+                               });
+    }
+    
+     self.getCanalVendas = function(id){
+      if(!id){return "Todos"}
+       var _canalVendas = self.canalVendas();
+       for (var i=0;i<_canalVendas.length;i++){
+          if (_canalVendas[i].value ==id){
+              return _canalVendas[i]['label'];
+          }
+       } 
+     }
+     self.getUFOrigem = function(id){
+       if (!id) return "Todos";
+       var _uf = self.ufOrigem();
+       for (var i=0;i<_uf.length;i++){
+          if (_uf[i].value ==id){
+              return _uf[i]['label'];
+          }
+       }
+    
+     }
+
+    self.getUFDestino = function(id){
+       if (!id) return "Todos";
+        var _uf = self.ufDestino();
+       for (var i=0;i<_uf.length;i++){
+          if (_uf[i].value ==id){
+              return _uf[i]['label'];
+          }
+       }
+     }
+  
+    _getSuperficieName = function(id){
+        
+      var _superf = self.superficie();
+      for (var i=0;i<_superf.length;i++){
+          if (_superf[i].id ==id){
+              return _superf[i]['SuperficieName'];
+          }
+      }    
+    }
+    _getFormatoName = function(id){
+        
+      var _formato = self.formatoOptions();
+      for (var i=0;i<_formato.length;i++){
+          if (_formato[i].value ==id){
+              return _formato[i]['label'];
+          }
+      }    
+    }
+    _getOpcaoName = function(id){
+
+      var _passo = self.formatoOpcoes();
+      for (var i=0;i<_passo.length;i++){
+        var  _opcao = _passo[i].children; 
+         for (var j=0;j<_opcao.length;j++){
+           if (_opcao[j].value ==id){
+              return _opcao[j]['label'];
+           }
+         }
+      }
+    }
+      
+    // function to determine which renderer to use for 
+    // rendering depending on mode
+    var _editRowRenderer = oj.KnockoutTemplateUtils.getRenderer('editRowSuperfTemplate', true);
+    var _navRowRenderer = oj.KnockoutTemplateUtils.getRenderer('rowSuperfTemplate', true);
+    var _editRowMargemContribRenderer = oj.KnockoutTemplateUtils.getRenderer('edit-row-margem-contrib-template', true);
+    var _navRowMargemContribRenderer = oj.KnockoutTemplateUtils.getRenderer('row-margem-contrib-template', true);    
+    var _editRowFormatoRenderer = oj.KnockoutTemplateUtils.getRenderer('editRowFormatoTemplate', true);
+    var _navRowFormatoRenderer = oj.KnockoutTemplateUtils.getRenderer('rowFormatoTemplate', true);
+    var _editRowProdutoRenderer = oj.KnockoutTemplateUtils.getRenderer('editRowProdutoTemplate', true);
+    var _navRowProdutoRenderer = oj.KnockoutTemplateUtils.getRenderer('rowProdutoTemplate', true);
+    var _rowExpanderOpcaoRenderer = oj.KnockoutTemplateUtils.getRenderer('row_opcao_template',true);
+    var _rowExpanderEditableOpcaoRenderer = oj.KnockoutTemplateUtils.getRenderer('row_opcao_template_editable',true);  
+    var _navRowCustomRenderer = oj.KnockoutTemplateUtils.getRenderer('row-custom-template',true);
+    var _editRowCustomRenderer = oj.KnockoutTemplateUtils.getRenderer('edit-row-custom-template',true);
+    self.rowRenderer = function(context)
+    {
+        var mode = context['rowContext']['mode'];
+        if (mode === 'edit')
+        {
+           _editRowRenderer(context);
+        }
+        else if (mode === 'navigation')
+        {
+            _navRowRenderer(context);
+        }
+    };
+    
+    self.rowRendererFormato = function(context)
+    {
+        var mode = context['rowContext']['mode'];
+        if (mode === 'edit')
+        {
+            _editRowFormatoRenderer(context);
+        }
+        else if (mode === 'navigation')
+        {
+            _navRowFormatoRenderer(context);
+        }
+    };  
+    self.rowRendererMargemContrib = function(context)
+    {
+     	var mode = context['rowContext']['mode'];
+        if (mode === 'edit')
+        {
+            _editRowMargemContribRenderer(context);
+        }
+	else if (mode === 'navigation')
+        {
+            _navRowMargemContribRenderer(context);
+        }
+    };
+    self.rowRendererCustom = function(context)
+    {
+     	var mode = context['rowContext']['mode'];
+        if (mode === 'edit')
+        {
+            _editRowCustomRenderer(context);
+        }
+	else if (mode === 'navigation')
+        {
+            _navRowCustomRenderer(context);
+        }
+    };
+      
+    self.rowRendererProduto = function(context)
+    {
+        var mode = context['rowContext']['mode'];
+        if (mode === 'edit')
+        {
+            _editRowProdutoRenderer(context);
+        }
+        else if (mode === 'navigation')
+        {
+            _navRowProdutoRenderer(context);
+        }
+    };    
+    //// NUMBER AND DATE CONVERTER ////
+    var numberConverterFactory = oj.Validation.converterFactory("number");
+    this.numberConverter = numberConverterFactory.createConverter();	   
+
+  
+     
+    this.beforeRowEditEndFormato = function(event)
+    {
+       var data = event.detail;
+       var rowIdx = data.rowContext.status.rowIndex;
+       self.formato()[rowIdx].SuperficieName=_getSuperficieName(self.formato()[rowIdx].SuperficieId());
+       self.formato()[rowIdx].FormatoName(_getFormatoName(self.formato()[rowIdx].FormatoCod()));       
+       self.formato()[rowIdx].OpcaoName(_getOpcaoName(self.formato()[rowIdx].OpcaoId()));
+       if (oj.DataCollectionEditUtils.basicHandleRowEditEnd(event, data) === false) {
+         event.preventDefault();
+       }
+    }
+    
+      
+    this.beforeRowEditEndListener = function(event)
+    {
+       var data = event.detail;
+       var rowIdx = data.rowContext.status.rowIndex;
+
+      
+       if (oj.DataCollectionEditUtils.basicHandleRowEditEnd(event, data) === false) {
+         event.preventDefault();
+       }
+    }
+    
+    self.rowRenderOpcao = function (context){
+       var mode = context['rowContext']['mode'];
+       if (mode === 'edit' && context.rowContext.leaf)
+        {
+            _rowExpanderEditableOpcaoRenderer(context);
+        }
+       else if (mode === 'navigation' ||!context.rowContext.leaf)
+       {
+          _rowExpanderOpcaoRenderer(context);
+       }
+        
+    };  
+   
+    self.columns = ko.observable(); 
+    self.refresh = function(){
+      if (!_spinner) _spinner =  apex.util.showSpinner();
+      idSuperficie = 0;
+      idFormato = 0;
+      idMagemContrib =0;
+     _completeLoad = false;
+     
+      apex.server.process("value.json",{},{success:function(data){
+         if (data.opcoes){
+             self.opcao(data.opcoes.items);
+             self.opcoes= data.opcoes.items ;
+             self.columns(data.opcoes.columns);
+          }       
+          self.formatoOptions(data.tamanho);
+          self.unidadeMedida(data.UnidadeMedida);
+          self.formatoOpcoes(data.formatoOpcoes);
+          self.canalVendas(data.canalVendas);
+          self.ufOrigem(data.ufOrigem);
+          self.ufDestino(data.ufDestino);
+          self.editMode(data.editMode);
+                
+          var arr =[] ;
+               
+          data.superficies.map(function(row,index) {
+                  row['id'] = String(idSuperficie);
+                  row['SuperficieName'] = ko.observable(row['SuperficieName'] );
+                  row.Formato.map(function(rowf,index) {
+                    rowf['id'] = String(idFormato++);
+                    rowf['SuperficieName'] =  row['SuperficieName'];
+                    rowf['SuperficieId'] =  ko.observable(  String(idSuperficie));
+                    rowf['OpcaoId']  = ko.observable(rowf['OpcaoId']);
+                    rowf['OpcaoName'] =ko.observable(rowf['OpcaoName']);
+                    rowf['FormatoCod']   = ko.observable(rowf['FormatoCod']);
+                    rowf['FormatoName']   = ko.observable(rowf['FormatoName'])     
+                    rowf['Pecas'] = ko.observable(rowf['Pecas'] );
+                    rowf['Variavel']= ko.observableArray([rowf["Variavel"]]);
+                   }) 
+                  idSuperficie++;
+                  arr = arr.concat(row.Formato) 
+                  delete row.Formato;
+                    
+          }); 
+          data.produto.map(function(row,index) {
+                   row['quantidade'] = ko.observable(row['quantidade'] );
+                   row['nome'] = ko.observable(row['nome'] );
+                   row['variavel'] =ko.observableArray([row["variavel"]]);
+          });
+              
+          data.margemContrib.map(function(row,index) {
+                   row['id'] = String(idMagemContrib++);
+                   row['MargemContribPBG'] = ko.observable(row['MargemContribPBG'] );
+                   row['MargemContribPBShop'] = ko.observable(row['MargemContribPBShop'] );
+                   row['MargemOficina'] = ko.observable(row['MargemOficina'] );
+                   row['PCTAdicionalModificado'] = ko.observable(row['PCTAdicionalModificado']);
+                   row['PCTAdicionalPortifolio'] = ko.observable(row['PCTAdicionalPortifolio']);
+                   row['UFOrigemId'] = ko.observable(row['UFOrigemId'] );
+                   row['UFDestinoId'] = ko.observable(row['UFDestinoId'] );
+                   row['CanalVendaId'] = ko.observable(row['CanalVendaId'] );
+                   
+           });
+           
+           self.margemContrib(data.margemContrib);
+           self.produto(data.produto); 
+           self.superficie(data.superficies); 
+              
+           self.formato(arr);
+               if(data.opcoes){
+                 self.dataSourceOpcao(new oj.FlattenedTreeTableDataSource(
+                                      new oj.FlattenedTreeDataSource( new oj.JsonTreeDataSource(data.opcoes.items),[])));
+               }
+                _completeLoad =true;
+               _spinner.remove();
+            }});
+         }
+
+        self.refresh();      
+        
+        self.toJSON = function(){
+            var result = {"produto":[],
+                          "opcoes":{},
+                          "tamanho":[],
+                          "superficies":[],
+                          "margemContrib":[]
+                         };
+            var tmp = self.margemContrib();
+            for (i =0;i<tmp.length;i++){
+                result.margemContrib[i]= {
+                     "ConfigPrecoProdutoId":tmp[i].ConfigPrecoProdutoId,
+                     "CanalVendaId":tmp[i].CanalVendaId(),
+                     "UFOrigemId":tmp[i].UFOrigemId(),
+                     "UFDestinoId":tmp[i].UFDestinoId(),
+                     "MargemContribPBG":tmp[i].MargemContribPBG(),
+                     "MargemOficina":tmp[i].MargemOficina(),
+                     "PCTAdicionalModificado":tmp[i].PCTAdicionalModificado(),
+                     "PCTAdicionalPortifolio":tmp[i].PCTAdicionalPortifolio(),
+                     "MargemContribPBShop":tmp[i].MargemContribPBShop()};
+            }
+            var tmp = self.produto() ;
+            for (i =0;i<tmp.length;i++){
+                result.produto[i]= {"id":tmp[i].id,
+                                    "nome":tmp[i].nome(),
+                                    "quantidade":tmp[i].quantidade(),
+                                    "variavel":tmp[i].variavel()[0]};
+            }
+                    
+            
+            tmp = self.superficie();
+            var tmp2 = self.formato();
+            for (var i=0;i<tmp.length;i++){
+                
+                result.superficies[i]= {"SuperficieId":tmp[i].SuperficieId,"SuperficieName":tmp[i].SuperficieName()};
+                result.superficies[i].Formato =[];
+                for (var j=0;j<tmp2.length;j++){
+                    if (tmp2[j].SuperficieId() == tmp[i].id){
+                        result.superficies[i].Formato.push({"FormatoCod":tmp2[j].FormatoCod(),
+                                                            "OpcaoId":tmp2[j].OpcaoId(),
+                                                            "Pecas":tmp2[j].Pecas(),
+                                                            "Variavel":tmp2[j].Variavel()[0]});
+                    }
+                }
+            }
+         
+                
+         result.opcoes.columns= self.columns(); 
+         result.opcoes.items =  self.opcao(); 
+         result.formatoOpcoes=  self.formatoOpcoes();
+         result.UnidadeMedida=  self.unidadeMedida();
+         result.  
+         result.tamanho = self.formatoOptions();
+         result.canalVendas = self.canalVendas();
+         result.ufOrigem = self.ufOrigem();
+         result.ufDestino =self.ufDestino();
+         result.editMode =  self.editMode();
+         return JSON.stringify(result);
+            
+        }
+    }
+  
+   window.produtoModel = new viewModel;    
+       
+
+  $(function()
+    {
+      var element = document.getElementById('table-superf');
+      ko.applyBindings(window.produtoModel, element);
+      element.addEventListener('ojBeforeRowEditEnd', window.produtoModel.beforeRowEditEndListener);  
+      var superTam = document.getElementById('table-superf-tam');
+      ko.applyBindings(window.produtoModel, superTam);
+      superTam.addEventListener('ojBeforeRowEditEnd',produtoModel.beforeRowEditEndFormato);   
+      ko.applyBindings(window.produtoModel, document.getElementById('datagrid'));   
+      ko.applyBindings(window.produtoModel, document.getElementById('btn-add-formato'));  
+      ko.applyBindings(window.produtoModel, document.getElementById('btn-add-superf'));
+      ko.applyBindings(window.produtoModel, document.getElementById('btn-add-contrib'));
+      var margemContrib = document.getElementById('table-margem-contrib');
+      ko.applyBindings(window.produtoModel, margemContrib);
+      var elemProduto=document.getElementById('table-recurso');
+      ko.applyBindings(window.produtoModel, elemProduto);
+      elemProduto.addEventListener('ojBeforeRowEditEnd', window.produtoModel.beforeRowEditEndListener);   
+      var elemOpcao=document.getElementById('datagrid'); 
+      var lcustom = document.getElementById('table-custom');
+      if (lcustom){
+        ko.applyBindings(window.produtoModel, lcustom);
+        ko.applyBindings(window.produtoModel, document.getElementById('btn-add-custom'));
+      }
+
+  // ="[[oj.DataCollectionEditUtils.basicHandleEditEnd]]
+    }
+  )
+
+    
+   
+});
+
